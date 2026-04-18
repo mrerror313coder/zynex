@@ -1,6 +1,6 @@
-# Inbox Copilot
+# ZYNEX
 
-Inbox Copilot scans opportunity-related emails, extracts relevant application details, ranks them for a student profile, and generates a practical checklist.
+ZYNEX scans opportunity-related emails, extracts relevant application details, ranks them for a student profile, and generates a practical checklist.
 
 ## Included
 
@@ -116,7 +116,7 @@ If provider config is missing or invalid, the app falls back to the deterministi
 
 ## Scoring rubric
 
-Inbox Copilot computes a final score from four deterministic signals:
+ZYNEX computes a final score from four deterministic signals:
 
 - Profile fit: 40%
 - Urgency: 30%

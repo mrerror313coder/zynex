@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DEMO_EMAILS_PATH = BASE_DIR / "demo_emails.json"
 PROFILE_PATH = BASE_DIR / "student_profile.json"
 
-app = FastAPI(title="Inbox Copilot", version="1.0.0")
+app = FastAPI(title="ZYNEX", version="1.0.0")
 
 
 class AnalyzeRequest(BaseModel):
@@ -61,7 +61,7 @@ def run_pipeline(emails: List[str], profile: dict):
 
 @app.get("/")
 def root():
-    return {"message": "Inbox Copilot is running. Use /demo or POST /analyze."}
+    return {"message": "ZYNEX is running. Use /demo or POST /analyze."}
 
 
 @app.get("/demo")

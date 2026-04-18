@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from io import StringIO
 from pathlib import Path
 from statistics import mean
@@ -153,33 +154,297 @@ def export_results_csv(items):
     return buffer.getvalue()
 
 
-st.set_page_config(page_title="Inbox Copilot Demo", page_icon="📬", layout="wide")
+def export_results_json(items):
+    payload = []
+    for item in items:
+        payload.append(
+            {
+                "index": item.get("index"),
+                "subject": item.get("subject"),
+                "priority": item.get("priority"),
+                "score": item.get("score", {}).get("final_score"),
+                "type": item.get("extracted", {}).get("opportunity_type", "unknown"),
+                "deadline": (item.get("checklist") or {}).get("deadline_line", ""),
+                "applied": bool(st.session_state.get(f"applied-{item['index']}")),
+            }
+        )
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def build_count_frame(items, field_name, fallback="unknown"):
+    counter = Counter()
+    for item in items:
+        if field_name == "priority":
+            value = item.get("priority", fallback)
+        else:
+            value = item.get("extracted", {}).get(field_name, fallback)
+        counter[str(value or fallback)] += 1
+    ordered = counter.most_common()
+    return ordered
+
+
+def priority_accent(priority: str) -> str:
+    mapping = {
+        "High": "#ef4444",
+        "Medium": "#f59e0b",
+        "Low": "#10b981",
+    }
+    return mapping.get(priority, "#3f51b5")
+
+
+def priority_tone(priority: str) -> str:
+    mapping = {
+        "High": "rgba(239, 68, 68, 0.12)",
+        "Medium": "rgba(245, 158, 11, 0.12)",
+        "Low": "rgba(16, 185, 129, 0.12)",
+    }
+    return mapping.get(priority, "rgba(63, 81, 181, 0.12)")
+
+
+st.set_page_config(page_title="ZYNEX", page_icon="📬", layout="wide")
 
 st.markdown(
     """
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        :root {
+            --bg: radial-gradient(circle at top, rgba(63, 81, 181, 0.08), transparent 26%), linear-gradient(180deg, #f7f3eb 0%, #f2ecdf 100%);
+            --surface: rgba(255, 255, 255, 0.88);
+            --surface-strong: rgba(255, 255, 255, 0.98);
+            --text: #16181d;
+            --muted: #5c6475;
+            --brand: #3f51b5;
+            --brand-strong: #27358a;
+            --accent: #10b981;
+            --warning: #d97706;
+            --danger: #ef4444;
+            --shadow: 0 18px 40px rgba(20, 27, 40, 0.08);
+        }
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
+        }
         .stApp {
-            background: linear-gradient(180deg, #faf7f2 0%, #f4efe6 100%);
+            background: var(--bg);
+            color: var(--text);
+        }
+        .stApp * {
+            box-sizing: border-box;
+        }
+        #MainMenu, footer, header {
+            visibility: hidden;
+        }
+        .block-container {
+            padding-top: 1.4rem;
+            padding-bottom: 2rem;
+            max-width: 1400px;
+        }
+        [data-testid="stButton"] button,
+        [data-testid="stDownloadButton"] button,
+        [data-testid="stFormSubmitButton"] button {
+            border-radius: 999px !important;
+            border: 1px solid rgba(63, 81, 181, 0.14) !important;
+            transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+        [data-testid="stButton"] button:hover,
+        [data-testid="stDownloadButton"] button:hover,
+        [data-testid="stFormSubmitButton"] button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 26px rgba(20, 27, 40, 0.12);
+        }
+        [data-baseweb="tab-list"] {
+            gap: 0.5rem;
+        }
+        [data-baseweb="tab"] {
+            border-radius: 999px !important;
+            padding: 0.45rem 0.85rem !important;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(71, 85, 105, 0.12);
         }
         .hero {
-            padding: 1.2rem 1.4rem;
-            border-radius: 1.25rem;
-            background: linear-gradient(135deg, #1f2937 0%, #334155 100%);
+            padding: 1.4rem 1.5rem;
+            border-radius: 1.4rem;
+            background:
+                radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 30%),
+                linear-gradient(135deg, #162034 0%, #25304e 48%, #3f4f84 100%);
             color: white;
             margin-bottom: 1rem;
-            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.8fr 1fr;
+            gap: 1rem;
+            align-items: end;
+        }
+        .hero-mini {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.6rem;
+        }
+        .hero-mini .mini {
+            padding: 0.85rem 0.9rem;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+        }
+        .hero-mini .mini .label {
+            display: block;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.72);
+            margin-bottom: 0.2rem;
+        }
+        .hero-mini .mini .value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: white;
         }
         .card {
             padding: 1rem 1rem 0.8rem 1rem;
             border-radius: 1rem;
-            background: rgba(255, 255, 255, 0.88);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+            background: var(--surface);
+            border: 1px solid rgba(71, 85, 105, 0.12);
+            box-shadow: var(--shadow);
             margin-bottom: 1rem;
+            backdrop-filter: blur(12px);
         }
         .meta {
-            color: #475569;
+            color: var(--muted);
             font-size: 0.95rem;
+        }
+        .card-title-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: flex-start;
+            margin-bottom: 0.7rem;
+        }
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin: 0.55rem 0 0.65rem 0;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.28rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 1px solid rgba(71, 85, 105, 0.14);
+            color: #243043;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.92);
+        }
+        .metric-shell {
+            border-radius: 1rem;
+            padding: 0.9rem 1rem;
+            background: var(--surface-strong);
+            border: 1px solid rgba(71, 85, 105, 0.12);
+            box-shadow: var(--shadow);
+        }
+        .section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.7rem;
+        }
+        .section-title h3 {
+            margin: 0;
+        }
+        .subtle {
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(63, 81, 181, 0.12);
+            color: var(--brand-strong);
+            border: 1px solid rgba(63, 81, 181, 0.18);
+            font-size: 0.84rem;
+            font-weight: 600;
+        }
+        .glass-panel {
+            background: var(--surface-strong);
+            border-radius: 1rem;
+            border: 1px solid rgba(71, 85, 105, 0.12);
+            box-shadow: var(--shadow);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .kpi-shell {
+            border-radius: 1.05rem;
+            border: 1px solid rgba(71, 85, 105, 0.12);
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: var(--shadow);
+            padding: 0.9rem 1rem;
+        }
+        .kpi-shell .label {
+            color: var(--muted);
+            font-size: 0.84rem;
+            margin-bottom: 0.25rem;
+        }
+        .kpi-shell .value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text);
+        }
+        .sidebar-panel {
+            padding: 1rem;
+            border-radius: 1.15rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(246, 241, 232, 0.9));
+            border: 1px solid rgba(71, 85, 105, 0.12);
+            box-shadow: var(--shadow);
+        }
+        .sidebar-brand {
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: 0.2rem;
+        }
+        .sidebar-subtitle {
+            color: var(--muted);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+        .sidebar-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-top: 0.85rem;
+        }
+        .sidebar-chip {
+            padding: 0.28rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--brand-strong);
+            background: rgba(63, 81, 181, 0.1);
+            border: 1px solid rgba(63, 81, 181, 0.12);
+        }
+        .fade-in {
+            animation: fadeIn 280ms ease-out both;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
     """,
@@ -189,10 +454,21 @@ st.markdown(
 st.markdown(
     """
     <div class="hero">
-        <h1 style="margin:0 0 0.35rem 0;">Inbox Copilot</h1>
-        <p style="margin:0; max-width: 60rem; line-height: 1.5;">
-            Paste or upload opportunity emails, rank them against a student profile, and export a concise application checklist.
-        </p>
+        <div class="hero-grid">
+            <div>
+                <div class="eyebrow">Opportunity ranking workspace</div>
+                <h1 style="margin:0.55rem 0 0.35rem 0; font-size:2.25rem; line-height:1.05;">ZYNEX</h1>
+                <p style="margin:0; max-width: 60rem; line-height: 1.55; color: rgba(255,255,255,0.84); font-size: 1.02rem;">
+                    Paste or upload opportunity emails, rank them against a student profile, and export a concise application checklist. Use the filters, sorting, and export tools to move faster from inbox to action.
+                </p>
+            </div>
+            <div class="hero-mini">
+                <div class="mini"><span class="label">View</span><span class="value">Split-pane triage</span></div>
+                <div class="mini"><span class="label">Workflow</span><span class="value">Apply faster</span></div>
+                <div class="mini"><span class="label">Exports</span><span class="value">TXT · CSV · JSON</span></div>
+                <div class="mini"><span class="label">Mode</span><span class="value">Deterministic fallback</span></div>
+            </div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -218,6 +494,33 @@ left, right = st.columns([1.05, 1])
 
 render_status_panel()
 
+with st.sidebar:
+    st.markdown(
+        """
+        <div class="sidebar-panel fade-in">
+            <div class="sidebar-brand">ZYNEX</div>
+            <div class="sidebar-subtitle">
+                Clean triage workspace for student opportunities with deterministic ranking, structured exports, and quick apply tracking.
+            </div>
+            <div class="sidebar-chip-row">
+                <span class="sidebar-chip">Ranked triage</span>
+                <span class="sidebar-chip">Fast exports</span>
+                <span class="sidebar-chip">Audit trail</span>
+                <span class="sidebar-chip">LLM fallback</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("#### Workspace")
+    st.write("- Filters and sorting for fast review")
+    st.write("- Applied-state tracking per item")
+    st.write("- CSV, JSON, and checklist downloads")
+    st.write("- Friendly fallback when the LLM is unavailable")
+    st.divider()
+    st.markdown("#### Tips")
+    st.caption("Use the summary tab to export filtered results, then review the top items in ranked order.")
+
 if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = []
 if "ignored_results" not in st.session_state:
@@ -225,6 +528,7 @@ if "ignored_results" not in st.session_state:
 
 with left:
     st.subheader("Inputs")
+    st.caption("Use the demo data to explore the flow quickly, or swap in your own inbox and profile JSON.")
     helper_col_1, helper_col_2 = st.columns(2)
     with helper_col_1:
         st.download_button(
@@ -278,6 +582,7 @@ with left:
     st.caption("Input format supports either a list of raw email strings or a list of {subject, body} objects.")
     analyze = st.button("Analyze inbox", type="primary", use_container_width=True)
     clear_results = st.button("Clear current results", use_container_width=True)
+    st.caption("Tip: use the filters on the right to focus on high-priority items.")
 
 with right:
     st.subheader("Results")
@@ -297,6 +602,8 @@ ignored_results = st.session_state.ignored_results
 if scored_results:
     all_types = sorted({item["extracted"].get("opportunity_type", "unknown") for item in scored_results})
     all_priorities = ["High", "Medium", "Low"]
+    priority_counts = build_count_frame(scored_results, "priority")
+    type_counts = build_count_frame(scored_results, "opportunity_type")
 
     filter_col_1, filter_col_2, filter_col_3 = st.columns(3)
     with filter_col_1:
@@ -347,36 +654,90 @@ if scored_results:
 
     with right:
         metric_col_1, metric_col_2, metric_col_3, metric_col_4 = st.columns(4)
-        metric_col_1.metric("Top score", f"{scored_results[0]['score']['final_score']}")
-        metric_col_2.metric("Avg score", f"{average_score}")
-        metric_col_3.metric("High priority", f"{high_count}")
-        metric_col_4.metric("Applied", f"{applied_count}")
+        metric_cards = [
+            (metric_col_1, "Top score", f"{scored_results[0]['score']['final_score']}"),
+            (metric_col_2, "Average", f"{average_score}"),
+            (metric_col_3, "High priority", f"{high_count}"),
+            (metric_col_4, "Applied", f"{applied_count}"),
+        ]
+        for column, label, value in metric_cards:
+            with column:
+                st.markdown(
+                    f'<div class="kpi-shell"><div class="label">{label}</div><div class="value">{value}</div></div>',
+                    unsafe_allow_html=True,
+                )
 
         st.info(f"Detected {len(scored_results)} opportunities, filtered view shows {len(filtered_results)}.")
         if ignored_results:
             st.caption(f"Ignored {len(ignored_results)} non-opportunity email(s).")
+
+        chart_col_1, chart_col_2 = st.columns(2)
+        with chart_col_1:
+            st.markdown("<div class='glass-panel'>", unsafe_allow_html=True)
+            st.subheader("Priority mix")
+            if priority_counts:
+                chart_data = {label: count for label, count in priority_counts}
+                st.bar_chart(chart_data)
+            else:
+                st.caption("No priority data yet.")
+            st.markdown("</div>", unsafe_allow_html=True)
+        with chart_col_2:
+            st.markdown("<div class='glass-panel'>", unsafe_allow_html=True)
+            st.subheader("Opportunity types")
+            if type_counts:
+                chart_data = {label: count for label, count in type_counts}
+                st.bar_chart(chart_data)
+            else:
+                st.caption("No type data yet.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
         tab_ranked, tab_ignored, tab_summary = st.tabs(["Ranked", "Ignored", "Summary"])
 
         with tab_ranked:
             if not filtered_results:
                 st.warning("No opportunities match the selected filters.")
+                st.write("Try lowering the minimum score, clearing search terms, or switching type filters.")
             else:
+                total_filtered = len(filtered_results)
                 for item in filtered_results:
                     score = item["score"]
                     extracted = item["extracted"]
                     checklist = item["checklist"]
                     applied_key = f"applied-{item['index']}"
                     is_applied = bool(st.session_state.get(applied_key))
+                    accent = priority_accent(item["priority"])
+                    tone = priority_tone(item["priority"])
+                    rank = filtered_results.index(item) + 1
+                    deadline_text = checklist["deadline_line"]
+                    opportunity_type = extracted.get("opportunity_type", "unknown")
+                    tags = [
+                        f"Score {score['final_score']}",
+                        item["priority"],
+                        opportunity_type,
+                        deadline_text,
+                    ]
 
                     with st.container(border=True):
                         st.markdown(
                             f"""
-                            <div class="card">
-                                <h3 style="margin:0 0 0.3rem 0;">{item['subject']}</h3>
-                                <div class="meta">Score: <strong>{score['final_score']}</strong> | Priority: <strong>{item['priority']}</strong> | Type: {extracted.get('opportunity_type', 'unknown')}</div>
-                                <div class="meta">Deadline: {checklist['deadline_line']}</div>
-                                <p style="margin-bottom:0;">{extracted.get('evidence', '')[:220]}</p>
+                            <div class="card" style="border-left: 6px solid {accent}; background: linear-gradient(90deg, {tone} 0%, rgba(255,255,255,0.96) 18%, rgba(255,255,255,0.9) 100%);">
+                                <div class="card-title-row">
+                                    <div>
+                                        <h3 style="margin:0 0 0.3rem 0;">{item['subject']}</h3>
+                                        <div class="meta">Rank #{rank} of {total_filtered} · {'Applied' if is_applied else 'Not applied yet'}</div>
+                                    </div>
+                                    <div class="meta" style="text-align:right; min-width: 8rem;">
+                                        <strong>Deadline</strong><br/>
+                                        <span>{deadline_text}</span>
+                                    </div>
+                                </div>
+                                <div class="badge-row">
+                                    <span class="badge">Score {score['final_score']}</span>
+                                    <span class="badge">{item['priority']} priority</span>
+                                    <span class="badge">{opportunity_type}</span>
+                                    <span class="badge">{deadline_text}</span>
+                                </div>
+                                <div class="meta" style="margin-bottom:0.65rem; line-height:1.55;">{extracted.get('evidence', '')[:220]}</div>
                             </div>
                             """,
                             unsafe_allow_html=True,
@@ -387,16 +748,37 @@ if scored_results:
                             with st.expander("View extracted fields", expanded=False):
                                 st.json(extracted)
                                 st.json(score)
+                            st.progress(min(score["final_score"] / 100, 1.0))
+                            st.caption("Score reflects fit, urgency, effort, and impact signals.")
 
                         with actions_col:
                             checklist_text = render_checklist_text(checklist, extracted, score)
-                            st.download_button(
-                                label="Download checklist",
-                                data=checklist_text,
-                                file_name=f"checklist-{item['index']}.txt",
-                                mime="text/plain",
-                                use_container_width=True,
-                            )
+                            quick_cols = st.columns(2)
+                            with quick_cols[0]:
+                                st.download_button(
+                                    label="Checklist TXT",
+                                    data=checklist_text,
+                                    file_name=f"checklist-{item['index']}.txt",
+                                    mime="text/plain",
+                                    use_container_width=True,
+                                )
+                            with quick_cols[1]:
+                                st.download_button(
+                                    label="Item JSON",
+                                    data=json.dumps(
+                                        {
+                                            "subject": item["subject"],
+                                            "score": score,
+                                            "extracted": extracted,
+                                            "checklist": checklist,
+                                        },
+                                        ensure_ascii=False,
+                                        indent=2,
+                                    ),
+                                    file_name=f"opportunity-{item['index']}.json",
+                                    mime="application/json",
+                                    use_container_width=True,
+                                )
                             st.text_area(
                                 "Checklist preview",
                                 value=checklist_text,
@@ -421,24 +803,46 @@ if scored_results:
                         st.caption(f"Evidence line used for filter: {item['evidence']}")
 
         with tab_summary:
-            st.subheader("Bulk actions")
+            st.markdown('<div class="section-title"><h3>Bulk actions</h3><span class="subtle">Exports and shortcuts</span></div>', unsafe_allow_html=True)
+            summary_cols = st.columns(3)
+            with summary_cols[0]:
+                st.markdown('<div class="glass-panel"><div class="subtle">Filtered count</div><div style="font-size:1.6rem; font-weight:800;">' + str(len(filtered_results)) + '</div></div>', unsafe_allow_html=True)
+            with summary_cols[1]:
+                st.markdown('<div class="glass-panel"><div class="subtle">Applied count</div><div style="font-size:1.6rem; font-weight:800;">' + str(applied_count) + '</div></div>', unsafe_allow_html=True)
+            with summary_cols[2]:
+                best_subject = filtered_results[0]["subject"] if filtered_results else "None yet"
+                st.markdown(f'<div class="glass-panel"><div class="subtle">Top opportunity</div><div style="font-size:1.1rem; font-weight:800; line-height:1.3;">{best_subject}</div></div>', unsafe_allow_html=True)
+            action_col_1, action_col_2 = st.columns(2)
+            with action_col_1:
+                st.download_button(
+                    label="Download all filtered checklists",
+                    data=export_all_checklists(filtered_results) if filtered_results else "No filtered opportunities available.",
+                    file_name="all-checklists.txt",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+            with action_col_2:
+                st.download_button(
+                    label="Download filtered results CSV",
+                    data=export_results_csv(filtered_results) if filtered_results else "rank,subject,score,priority,type,deadline,applied\n",
+                    file_name="filtered-results.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
             st.download_button(
-                label="Download all filtered checklists",
-                data=export_all_checklists(filtered_results) if filtered_results else "No filtered opportunities available.",
-                file_name="all-checklists.txt",
-                mime="text/plain",
+                label="Download filtered results JSON",
+                data=export_results_json(filtered_results) if filtered_results else "[]",
+                file_name="filtered-results.json",
+                mime="application/json",
                 use_container_width=True,
             )
-            st.download_button(
-                label="Download filtered results CSV",
-                data=export_results_csv(filtered_results) if filtered_results else "rank,subject,score,priority,type,deadline,applied\n",
-                file_name="filtered-results.csv",
-                mime="text/csv",
-                use_container_width=True,
-            )
+            st.divider()
             st.write("Top opportunities")
-            for item in filtered_results[:3]:
+            for item in filtered_results[:5]:
                 st.write(f"- {item['subject']} | Score {item['score']['final_score']} | Priority {item['priority']}")
+            if filtered_results:
+                st.caption(f"Showing top {min(5, len(filtered_results))} of {len(filtered_results)} filtered opportunities.")
+                st.caption("Use the JSON export if you want to feed this ranking into another workflow.")
 else:
     st.subheader("What you can do here")
     st.write("Load the demo inbox, upload your own JSON, or paste emails and a profile to see ranked opportunities.")
