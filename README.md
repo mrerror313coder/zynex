@@ -81,30 +81,21 @@ If provider config is missing or invalid, the app falls back to the deterministi
 1. Push the repo to GitHub.
 2. Create a new app in Streamlit Cloud and set the main file to `streamlit_app.py`.
 3. Add provider secrets in Streamlit Cloud: `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `GROQ_API_KEY`.
+4. (Recommended) add `LLM_PROVIDER` and the matching model key (`OPENAI_MODEL`, `GEMINI_MODEL`, or `GROQ_MODEL`).
 4. Launch and share the URL.
 
 ## Deploy to Render
 
 1. Create a new Web Service and connect the GitHub repo.
 2. Build command: `pip install -r requirements.txt`
-3. Start command: `streamlit run streamlit_app.py --server.port $PORT`
-4. Add environment variables for selected provider if needed.
+3. Start command: `streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false`
+4. Set environment variables for selected provider (`LLM_PROVIDER` + matching API key/model).
 
 ## Deployment notes
 
-### Streamlit Cloud
-
-1. Push the repository to GitHub.
-2. Create a new Streamlit Cloud app from the repo.
-3. Set the main file path to `streamlit_app.py`.
-4. Add `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `GROQ_API_KEY` in Secrets if using the LLM wrapper.
-
-### Render
-
-1. Create a new Web Service connected to the repo.
-2. Build command: `pip install -r requirements.txt`
-3. Start command: `streamlit run streamlit_app.py --server.port $PORT`
-4. Add environment variables for selected provider if needed.
+- Keep `.env` local only; use platform secrets for deployed environments.
+- If no provider keys are configured, app still runs with deterministic extraction fallback.
+- Prefer Python `3.11.x` in hosted environments for best package compatibility.
 
 ## Demo flow
 
