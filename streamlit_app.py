@@ -2,6 +2,7 @@ import json
 from collections import Counter
 from io import StringIO
 from pathlib import Path
+import re
 from statistics import mean
 
 import streamlit as st
@@ -14,6 +15,36 @@ from streamlit_status_panel import latest_audit_file, llm_is_active, read_audit_
 BASE_DIR = Path(__file__).resolve().parent
 DEMO_EMAILS_PATH = BASE_DIR / "demo_emails.json"
 PROFILE_PATH = BASE_DIR / "student_profile.json"
+
+THEME_PRESETS = {
+    "Sandstone Indigo": {
+        "bg": "radial-gradient(circle at top, rgba(63, 81, 181, 0.08), transparent 26%), linear-gradient(180deg, #f7f3eb 0%, #f2ecdf 100%)",
+        "surface": "rgba(255, 255, 255, 0.88)",
+        "surface_strong": "rgba(255, 255, 255, 0.98)",
+        "text": "#16181d",
+        "muted": "#5c6475",
+        "brand": "#3f51b5",
+        "brand_strong": "#27358a",
+    },
+    "Emerald Breeze": {
+        "bg": "radial-gradient(circle at top, rgba(16, 185, 129, 0.11), transparent 30%), linear-gradient(180deg, #f1faf6 0%, #eaf4ef 100%)",
+        "surface": "rgba(255, 255, 255, 0.9)",
+        "surface_strong": "rgba(255, 255, 255, 0.98)",
+        "text": "#10211b",
+        "muted": "#426258",
+        "brand": "#0f766e",
+        "brand_strong": "#115e59",
+    },
+    "Midnight Slate": {
+        "bg": "radial-gradient(circle at top, rgba(56, 189, 248, 0.10), transparent 34%), linear-gradient(180deg, #0f172a 0%, #131d31 100%)",
+        "surface": "rgba(20, 28, 47, 0.78)",
+        "surface_strong": "rgba(20, 28, 47, 0.94)",
+        "text": "#e6eefc",
+        "muted": "#9fb0cf",
+        "brand": "#38bdf8",
+        "brand_strong": "#7dd3fc",
+    },
+}
 
 
 def load_json(path: Path):
@@ -183,6 +214,52 @@ def build_count_frame(items, field_name, fallback="unknown"):
     return ordered
 
 
+def build_score_bands(items):
+    bands = {
+        "90-100": 0,
+        "75-89": 0,
+        "60-74": 0,
+        "40-59": 0,
+        "0-39": 0,
+    }
+    for item in items:
+        score = item.get("score", {}).get("final_score", 0)
+        if score >= 90:
+            bands["90-100"] += 1
+        elif score >= 75:
+            bands["75-89"] += 1
+        elif score >= 60:
+            bands["60-74"] += 1
+        elif score >= 40:
+            bands["40-59"] += 1
+        else:
+            bands["0-39"] += 1
+    return list(bands.items())
+
+
+def build_deadline_bands(items):
+    bands = {
+        "0-7 days": 0,
+        "8-21 days": 0,
+        "22+ days": 0,
+        "No deadline": 0,
+    }
+    for item in items:
+        line = (item.get("checklist") or {}).get("deadline_line", "")
+        match = re.search(r"(\d+)\s+days?", str(line), flags=re.IGNORECASE)
+        if not match:
+            bands["No deadline"] += 1
+            continue
+        days = int(match.group(1))
+        if days <= 7:
+            bands["0-7 days"] += 1
+        elif days <= 21:
+            bands["8-21 days"] += 1
+        else:
+            bands["22+ days"] += 1
+    return list(bands.items())
+
+
 def priority_accent(priority: str) -> str:
     mapping = {
         "High": "#ef4444",
@@ -245,11 +322,44 @@ st.markdown(
             border: 1px solid rgba(63, 81, 181, 0.14) !important;
             transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
         }
+        [data-testid="stBaseButton-primary"],
+        button[kind="primary"] {
+            background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 88%, white), var(--brand)) !important;
+            color: white !important;
+            border: 1px solid color-mix(in srgb, var(--brand) 72%, #101827) !important;
+        }
+        [data-testid="stBaseButton-primary"]:hover,
+        button[kind="primary"]:hover {
+            background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 92%, white), color-mix(in srgb, var(--brand) 86%, #0b1220)) !important;
+        }
         [data-testid="stButton"] button:hover,
         [data-testid="stDownloadButton"] button:hover,
         [data-testid="stFormSubmitButton"] button:hover {
             transform: translateY(-1px);
             box-shadow: 0 10px 26px rgba(20, 27, 40, 0.12);
+        }
+        [data-baseweb="radio"] [aria-checked="true"],
+        [data-baseweb="checkbox"] [aria-checked="true"] {
+            background-color: var(--brand) !important;
+            border-color: var(--brand) !important;
+        }
+        [data-baseweb="radio"] input:checked + div,
+        [data-baseweb="checkbox"] input:checked + div {
+            background-color: var(--brand) !important;
+            border-color: var(--brand) !important;
+        }
+        [data-baseweb="slider"] [role="slider"] {
+            background-color: var(--brand) !important;
+            border-color: var(--brand) !important;
+        }
+        [data-baseweb="slider"] [data-testid="stTickBarMax"] {
+            background: color-mix(in srgb, var(--brand) 60%, white) !important;
+        }
+        [data-testid="stToggle"] input:checked + div {
+            background-color: color-mix(in srgb, var(--brand) 55%, white) !important;
+        }
+        [data-testid="stToggle"] input:checked + div div {
+            background-color: var(--brand) !important;
         }
         [data-baseweb="tab-list"] {
             gap: 0.5rem;
@@ -442,6 +552,24 @@ st.markdown(
         .fade-in {
             animation: fadeIn 280ms ease-out both;
         }
+        .panel-heading {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.42rem 0.85rem;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--surface-strong) 82%, white);
+            border: 1px solid rgba(71, 85, 105, 0.14);
+            color: var(--brand-strong);
+            font-size: 0.92rem;
+            font-weight: 700;
+            margin-bottom: 0.55rem;
+        }
+        .panel-caption {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
@@ -495,6 +623,7 @@ left, right = st.columns([1.05, 1])
 render_status_panel()
 
 with st.sidebar:
+    st.selectbox("Theme", options=list(THEME_PRESETS.keys()), key="theme_name")
     st.markdown(
         """
         <div class="sidebar-panel fade-in">
@@ -521,14 +650,46 @@ with st.sidebar:
     st.markdown("#### Tips")
     st.caption("Use the summary tab to export filtered results, then review the top items in ranked order.")
 
+selected_theme = THEME_PRESETS.get(st.session_state.get("theme_name", "Sandstone Indigo"), THEME_PRESETS["Sandstone Indigo"])
+st.markdown(
+    f"""
+    <style>
+    :root {{
+        --bg: {selected_theme['bg']};
+        --surface: {selected_theme['surface']};
+        --surface-strong: {selected_theme['surface_strong']};
+        --text: {selected_theme['text']};
+        --muted: {selected_theme['muted']};
+        --brand: {selected_theme['brand']};
+        --brand-strong: {selected_theme['brand_strong']};
+    }}
+    .hero {{
+        background:
+            radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 30%),
+            linear-gradient(135deg, color-mix(in srgb, var(--brand) 30%, #101727) 0%, color-mix(in srgb, var(--brand) 58%, #1b2a46) 50%, color-mix(in srgb, var(--brand) 75%, #273b61) 100%);
+    }}
+    .sidebar-panel {{
+        background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 92%, white), color-mix(in srgb, var(--surface) 90%, #eef2ff));
+    }}
+    .badge {{
+        background: color-mix(in srgb, var(--surface-strong) 86%, white);
+        color: color-mix(in srgb, var(--text) 86%, black);
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = []
 if "ignored_results" not in st.session_state:
     st.session_state.ignored_results = []
+if "shortlist_ids" not in st.session_state:
+    st.session_state.shortlist_ids = []
 
 with left:
-    st.subheader("Inputs")
-    st.caption("Use the demo data to explore the flow quickly, or swap in your own inbox and profile JSON.")
+    st.markdown('<div class="panel-heading">Inputs</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-caption">Use demo data to explore quickly, or upload your own profile and emails.</div>', unsafe_allow_html=True)
     helper_col_1, helper_col_2 = st.columns(2)
     with helper_col_1:
         st.download_button(
@@ -585,7 +746,8 @@ with left:
     st.caption("Tip: use the filters on the right to focus on high-priority items.")
 
 with right:
-    st.subheader("Results")
+    st.markdown('<div class="panel-heading">Results</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-caption">Ranked opportunities, insights, and action workflows.</div>', unsafe_allow_html=True)
 
 if clear_results:
     st.session_state.analysis_results = []
@@ -604,6 +766,9 @@ if scored_results:
     all_priorities = ["High", "Medium", "Low"]
     priority_counts = build_count_frame(scored_results, "priority")
     type_counts = build_count_frame(scored_results, "opportunity_type")
+    score_band_counts = build_score_bands(scored_results)
+    deadline_band_counts = build_deadline_bands(scored_results)
+    shortlist_ids = set(st.session_state.shortlist_ids)
 
     filter_col_1, filter_col_2, filter_col_3 = st.columns(3)
     with filter_col_1:
@@ -616,7 +781,11 @@ if scored_results:
         sort_by = st.selectbox("Sort by", options=["Score", "Subject", "Type"], index=0)
         sort_desc = st.toggle("Descending", value=True)
 
-    show_applied = st.toggle("Show applied only", value=False)
+    toggle_col_1, toggle_col_2 = st.columns(2)
+    with toggle_col_1:
+        show_applied = st.toggle("Show applied only", value=False)
+    with toggle_col_2:
+        show_shortlist_only = st.toggle("Show shortlist only", value=False)
 
     filtered_results = []
     for item in scored_results:
@@ -636,6 +805,8 @@ if scored_results:
             continue
         if show_applied and not is_applied:
             continue
+        if show_shortlist_only and item["index"] not in shortlist_ids:
+            continue
         filtered_results.append(item)
 
     if sort_by == "Subject":
@@ -651,6 +822,7 @@ if scored_results:
     applied_count = sum(1 for item in scored_results if st.session_state.get(f"applied-{item['index']}"))
     average_score = round(mean([item["score"]["final_score"] for item in scored_results]), 1)
     high_count = sum(1 for item in scored_results if item["priority"] == "High")
+    shortlist_count = len(shortlist_ids)
 
     with right:
         metric_col_1, metric_col_2, metric_col_3, metric_col_4 = st.columns(4)
@@ -658,7 +830,7 @@ if scored_results:
             (metric_col_1, "Top score", f"{scored_results[0]['score']['final_score']}"),
             (metric_col_2, "Average", f"{average_score}"),
             (metric_col_3, "High priority", f"{high_count}"),
-            (metric_col_4, "Applied", f"{applied_count}"),
+            (metric_col_4, "Shortlisted", f"{shortlist_count}"),
         ]
         for column, label, value in metric_cards:
             with column:
@@ -691,7 +863,41 @@ if scored_results:
                 st.caption("No type data yet.")
             st.markdown("</div>", unsafe_allow_html=True)
 
-        tab_ranked, tab_ignored, tab_summary = st.tabs(["Ranked", "Ignored", "Summary"])
+        chart_col_3, chart_col_4 = st.columns(2)
+        with chart_col_3:
+            st.markdown("<div class='glass-panel'>", unsafe_allow_html=True)
+            st.subheader("Score distribution")
+            score_chart = {label: count for label, count in score_band_counts}
+            st.area_chart(score_chart)
+            st.caption("How opportunities are spread across score quality bands.")
+            st.markdown("</div>", unsafe_allow_html=True)
+        with chart_col_4:
+            st.markdown("<div class='glass-panel'>", unsafe_allow_html=True)
+            st.subheader("Deadline urgency")
+            deadline_chart = {label: count for label, count in deadline_band_counts}
+            st.bar_chart(deadline_chart)
+            st.caption("At-a-glance urgency buckets based on days left.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("<div class='glass-panel'>", unsafe_allow_html=True)
+        st.subheader("Pipeline progress")
+        total_items = max(len(scored_results), 1)
+        applied_ratio = applied_count / total_items
+        shortlisted_ratio = shortlist_count / total_items
+        high_priority_ratio = high_count / total_items
+        progress_col_1, progress_col_2, progress_col_3 = st.columns(3)
+        with progress_col_1:
+            st.caption(f"Applied {applied_count}/{len(scored_results)}")
+            st.progress(applied_ratio)
+        with progress_col_2:
+            st.caption(f"Shortlisted {shortlist_count}/{len(scored_results)}")
+            st.progress(shortlisted_ratio)
+        with progress_col_3:
+            st.caption(f"High priority {high_count}/{len(scored_results)}")
+            st.progress(high_priority_ratio)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        tab_ranked, tab_shortlist, tab_ignored, tab_summary = st.tabs(["Ranked", "Shortlist", "Ignored", "Summary"])
 
         with tab_ranked:
             if not filtered_results:
@@ -793,6 +999,33 @@ if scored_results:
                         if st.session_state.get(applied_key):
                             st.success("Marked as applied")
 
+                        shortlist_label = "Remove from shortlist" if item["index"] in shortlist_ids else "Add to shortlist"
+                        if st.button(shortlist_label, key=f"shortlist-{item['index']}", use_container_width=True):
+                            if item["index"] in shortlist_ids:
+                                shortlist_ids.remove(item["index"])
+                            else:
+                                shortlist_ids.add(item["index"])
+                            st.session_state.shortlist_ids = sorted(shortlist_ids)
+                            st.rerun()
+
+        with tab_shortlist:
+            shortlist_items = [item for item in scored_results if item["index"] in shortlist_ids]
+            if not shortlist_items:
+                st.info("No shortlisted opportunities yet. Use 'Add to shortlist' from the Ranked tab.")
+            else:
+                st.subheader("Saved shortlist")
+                for item in shortlist_items:
+                    score = item["score"]["final_score"]
+                    st.markdown(
+                        f"""
+                        <div class="glass-panel">
+                            <strong>{item['subject']}</strong><br/>
+                            <span class="meta">Score {score} · Priority {item['priority']} · Type {item['extracted'].get('opportunity_type', 'unknown')}</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
         with tab_ignored:
             if not ignored_results:
                 st.info("No non-opportunity emails were filtered out.")
@@ -812,6 +1045,21 @@ if scored_results:
             with summary_cols[2]:
                 best_subject = filtered_results[0]["subject"] if filtered_results else "None yet"
                 st.markdown(f'<div class="glass-panel"><div class="subtle">Top opportunity</div><div style="font-size:1.1rem; font-weight:800; line-height:1.3;">{best_subject}</div></div>', unsafe_allow_html=True)
+            quick_action_col_1, quick_action_col_2, quick_action_col_3 = st.columns(3)
+            with quick_action_col_1:
+                if st.button("Mark top 3 as applied", use_container_width=True, key="quick-apply-top3"):
+                    for item in filtered_results[:3]:
+                        st.session_state[f"applied-{item['index']}"] = True
+                    st.rerun()
+            with quick_action_col_2:
+                if st.button("Clear applied flags", use_container_width=True, key="quick-clear-applied"):
+                    for item in scored_results:
+                        st.session_state[f"applied-{item['index']}"] = False
+                    st.rerun()
+            with quick_action_col_3:
+                if st.button("Clear shortlist", use_container_width=True, key="quick-clear-shortlist"):
+                    st.session_state.shortlist_ids = []
+                    st.rerun()
             action_col_1, action_col_2 = st.columns(2)
             with action_col_1:
                 st.download_button(
