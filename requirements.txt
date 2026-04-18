@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+spacy
+dateparser
+pydantic
+transformers
+python-dotenv
+pytest
+streamlit
+jsonschema
+openai
+google-generativeai
+groq

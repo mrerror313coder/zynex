@@ -1,0 +1,7 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+llm_audit/*.json
+__gemini_*.py
+__openai_*.py

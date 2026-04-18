@@ -1,0 +1,10 @@
+{
+  "name": "Muhammad",
+  "degree": "BS Computer Science",
+  "semester": 7,
+  "cgpa": 3.6,
+  "skills": ["python", "machine learning", "nlp"],
+  "preferred_types": ["internship", "scholarship"],
+  "financial_need": true,
+  "location_preference": "Lahore"
+}
