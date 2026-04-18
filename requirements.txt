@@ -1,9 +1,7 @@
 fastapi
 uvicorn
-spacy
 dateparser
 pydantic
-transformers
 python-dotenv
 pytest
 streamlit

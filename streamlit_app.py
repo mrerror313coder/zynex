@@ -459,13 +459,6 @@ st.markdown(
             font-size: 0.85rem;
             color: rgba(255, 255, 255, 0.92);
         }
-        .metric-shell {
-            border-radius: 1rem;
-            padding: 0.9rem 1rem;
-            background: var(--surface-strong);
-            border: 1px solid rgba(71, 85, 105, 0.12);
-            box-shadow: var(--shadow);
-        }
         .section-title {
             display: flex;
             justify-content: space-between;
@@ -479,18 +472,6 @@ st.markdown(
         .subtle {
             color: var(--muted);
             font-size: 0.92rem;
-        }
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.3rem 0.7rem;
-            border-radius: 999px;
-            background: rgba(63, 81, 181, 0.12);
-            color: var(--brand-strong);
-            border: 1px solid rgba(63, 81, 181, 0.18);
-            font-size: 0.84rem;
-            font-weight: 600;
         }
         .glass-panel {
             background: var(--surface-strong);
@@ -916,13 +897,6 @@ if scored_results:
                     rank = filtered_results.index(item) + 1
                     deadline_text = checklist["deadline_line"]
                     opportunity_type = extracted.get("opportunity_type", "unknown")
-                    tags = [
-                        f"Score {score['final_score']}",
-                        item["priority"],
-                        opportunity_type,
-                        deadline_text,
-                    ]
-
                     with st.container(border=True):
                         st.markdown(
                             f"""
